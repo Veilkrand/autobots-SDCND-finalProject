@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, Pose
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Int32
 
 import math
 
@@ -32,21 +33,22 @@ class WaypointUpdater(object):
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        # rospy.Subscriber('/obstacle_waypoint', Lane, self.obstacle_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
-
+        self.currenPosition = Pose()
+        self.waypoints = []
         rospy.spin()
 
     def pose_cb(self, msg):
-        # TODO: Implement
-        pass
+        self.currenPosition = msg.pose.position
+        self.updateWaypoints()
 
-    def waypoints_cb(self, waypoints):
-        # TODO: Implement
-        pass
+    def waypoints_cb(self, msg):
+        self.waypoints = msg.waypoints
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
@@ -70,6 +72,19 @@ class WaypointUpdater(object):
             wp1 = i
         return dist
 
+    ###
+    ### Publishing the next LOOKAHEAD_WPS waypoints to final_waypoints
+    ###
+    def updateWaypoints(self):
+        for index, waypoint in enumerate(self.waypoints):
+            #Finding waypoint that corresponds to the car location
+            if waypoint.pose == self.currenPosition:
+                next_index = index + 1 + LOOKAHEAD_WPS
+                if next_index >= len(self.waypoints):
+                    next_index = len(self.waypoints) - 1
+                next_waypoints = self.waypoints[index+1:next_index]
+                self.final_waypoints_pub.publish(next_waypoints)
+                break
 
 if __name__ == '__main__':
     try:
