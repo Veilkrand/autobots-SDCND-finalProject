@@ -21,8 +21,8 @@ class TLClassifier(object):
     def __init__(self):
         
         model_name         = "/mobilenet_1.0_224.pb"
-        #path_to_data       = os.path.abspath ("./light_classification/")
-        path_to_data       = os.path.abspath (".")
+        path_to_data       = os.path.abspath ("./light_classification/")
+        #path_to_data       = os.path.abspath (".")
         label_name         =  "/labels.pbtxt"
         self.num_classs    = 4
 
