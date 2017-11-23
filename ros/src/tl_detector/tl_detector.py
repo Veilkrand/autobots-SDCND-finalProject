@@ -116,7 +116,7 @@ class TLDetector(object):
         px  = pose.position.x
         py  = pose.position.y
 
-        for wp,indx in enumerate(self.waypoints.waypoints):
+        for indx,wp in enumerate(self.waypoints.waypoints):
 
              wx   = wp.pose.pose.position.x
              wy   = wp.pose.pose.position.y
@@ -130,21 +130,6 @@ class TLDetector(object):
 		
         return mid
 
-#    def get_closest_waypoint(self, pose):
-#       """Identifies the closest path waypoint to the given position
-#       Args:
-#           x, y: traffic light location
-#       Returns:
-#           int: index of the closest waypoint in self.waypoints
-#
-#       """
-#       px = pose.position.x
-#       py = pose.position.y
-#
-#       far = [(px - wp.pose.pose.position.x)**2 + (py - wp.pose.pose.position.y)**2 for wp in self.waypoints.waypoints]
-#       idx = numpy.argmin(far)
-#
-#       return idx
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -174,6 +159,10 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
+
+        if (self.lights == None) or (self.waypoints ==  None):
+             return -1, TrafficLight.UNKNOWN
+
         light = None
 
         # List of positions that correspond to the line to stop in front of for a given intersection
