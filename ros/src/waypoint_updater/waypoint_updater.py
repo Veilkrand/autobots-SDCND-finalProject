@@ -89,6 +89,12 @@ class WaypointUpdater(object):
 
         return distances
 
+    def make_lane_msg(self, waypoints):
+        lane = Lane()
+        lane.header.frame_id = '/world'
+        lane.header.stamp = rospy.Time(0)
+        lane.waypoints = waypoints
+        return lane
 
     ###
     ### Publishing the next LOOKAHEAD_WPS waypoints to final_waypoints
@@ -109,7 +115,10 @@ class WaypointUpdater(object):
             last_waypoint = min(next_waypoint + LOOKAHEAD_WPS, len(self.waypoints))
             next_waypoints = self.waypoints[next_waypoint:last_waypoint]
 
-            self.final_waypoints_pub.publish(next_waypoints)
+            #Create a message of type Lane and publish it on the final_waypoints topic
+            final_waypoints_message = self.make_lane_msg(next_waypoints)
+            self.final_waypoints_pub.publish(final_waypoints_message)
+
 
 if __name__ == '__main__':
     try:
