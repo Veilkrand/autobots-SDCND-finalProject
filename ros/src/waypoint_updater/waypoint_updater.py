@@ -4,6 +4,7 @@ import rospy
 from geometry_msgs.msg import PoseStamped, Pose
 from styx_msgs.msg import Lane, Waypoint
 from std_msgs.msg import Int32
+from operator import itemgetter
 
 import math
 
@@ -29,6 +30,7 @@ class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
+        self.timer = 0
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
@@ -39,7 +41,7 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
-        self.currenPosition = Pose()
+        self.currenPosition = None
         self.waypoints = []
         rospy.spin()
 
@@ -72,19 +74,42 @@ class WaypointUpdater(object):
             wp1 = i
         return dist
 
+    def distances(self, waypoints, current_position):
+        """
+        Returns an iterator with distances from current position to each waypoint
+        """
+        # Get the coordinates for all waypoint objects
+        get_coordinates = lambda waypoint: waypoint.pose.pose.position
+        waypoint_coordinates = map(get_coordinates, waypoints)
+
+        # Calculate all distances
+        c = current_position
+        dist_to_a = lambda a: math.sqrt((a.x-c.x)**2 + (a.y-c.y)**2  + (a.z-c.z)**2)
+        distances = map(dist_to_a, waypoint_coordinates)
+
+        return distances
+
+
     ###
     ### Publishing the next LOOKAHEAD_WPS waypoints to final_waypoints
     ###
     def updateWaypoints(self):
-        for index, waypoint in enumerate(self.waypoints):
-            #Finding waypoint that corresponds to the car location
-            if waypoint.pose == self.currenPosition:
-                next_index = index + 1 + LOOKAHEAD_WPS
-                if next_index >= len(self.waypoints):
-                    next_index = len(self.waypoints) - 1
-                next_waypoints = self.waypoints[index+1:next_index]
-                self.final_waypoints_pub.publish(next_waypoints)
-                break
+        # Make sure the current position is not the deafult initialization
+        if self.currenPosition is not None:
+
+            #calculate distances from current position to each waypoint
+            distances = self.distances(self.waypoints, self.currenPosition)
+
+            # find index of closest waypoint, which has the shortest distance
+            closest_index, _ = min(enumerate(distances), key=itemgetter(1))
+
+            # Use the waypoints following the current waypoint as the next
+            # short term goals.
+            next_waypoint = min(closest_index + 1, len(self.waypoints))
+            last_waypoint = min(next_waypoint + LOOKAHEAD_WPS, len(self.waypoints))
+            next_waypoints = self.waypoints[next_waypoint:last_waypoint]
+
+            self.final_waypoints_pub.publish(next_waypoints)
 
 if __name__ == '__main__':
     try:
