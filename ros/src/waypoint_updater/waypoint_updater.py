@@ -8,6 +8,7 @@ from operator import itemgetter
 
 import math
 import yaml
+import copy
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -63,7 +64,7 @@ class WaypointUpdater(object):
     def waypoints_cb(self, msg):
         self.green_waypoints = msg.waypoints
         # clone waypoints to initialize red_waypoints
-        self.red_waypoints = list(msg.waypoints)
+        self.red_waypoints = copy.deepcopy(msg.waypoints)
 
         # use traffic light locations to adjust red_waypoints' velocities
         trafic_lights = self.config['stop_line_positions']
@@ -87,7 +88,6 @@ class WaypointUpdater(object):
             # When a green light is not detected, the car should follow
             # waypoints that gently stop at every traffic light.
             self.waypoints = self.red_waypoints
-
 
     def traffic_cb(self, msg):
         # The waypoint updater is conservative. The car stops at every
@@ -113,7 +113,7 @@ class WaypointUpdater(object):
             dist = self.pose_distance(wp.pose.pose.position, last.pose.pose.position)
             #decelerate at a constant rate (cuadratic decline in velocity).
             vel = math.sqrt(2 * max_decel * dist)
-            if vel < 1.:
+            if vel < 2:
                 vel = 0.
             wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
         return waypoints
@@ -130,7 +130,6 @@ class WaypointUpdater(object):
         c = current_position
         dist_to_a = lambda a: math.sqrt((a.x-c.x)**2 + (a.y-c.y)**2  + (a.z-c.z)**2)
         distances = map(dist_to_a, waypoint_coordinates)
-
         return distances
 
     def get_closest_waypoint_to_pose(self, waypoints, pose):
@@ -167,7 +166,6 @@ class WaypointUpdater(object):
             #Create a message of type Lane and publish it on the final_waypoints topic
             final_waypoints_message = self.make_lane_msg(next_waypoints)
             self.final_waypoints_pub.publish(final_waypoints_message)
-
 
 if __name__ == '__main__':
     try:
