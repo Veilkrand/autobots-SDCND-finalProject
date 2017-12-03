@@ -33,7 +33,7 @@ class WaypointUpdater(object):
         rospy.init_node('waypoint_updater')
 
         config_string = rospy.get_param("/traffic_light_config")
-        self.config = yaml.load(config_string)
+        self.trafic_light_positions = yaml.load(config_string)['stop_line_positions']
 
         self.timer = 0
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
@@ -51,6 +51,7 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
+        self.prev_index = -1
         self.current_position = None
         self.waypoints = []
         self.green_waypoints = []
@@ -67,14 +68,13 @@ class WaypointUpdater(object):
         self.red_waypoints = copy.deepcopy(msg.waypoints)
 
         # use traffic light locations to adjust red_waypoints' velocities
-        trafic_lights = self.config['stop_line_positions']
-        for trafic_light in trafic_lights:
+        for trafic_light in self.trafic_light_positions:
             tl_position = Point(x = trafic_light[0], y = trafic_light[1], z = 0)
             closest_wp_index = self.get_closest_waypoint_to_point(self.red_waypoints, tl_position)
 
             #Car will stop in the waypoint right before the stoplight
             stop_index = max(0, closest_wp_index - 1)
-            self.red_waypoints = self.decelerate(self.red_waypoints, closest_wp_index - 1)
+            self.red_waypoints = self.decelerate(self.red_waypoints, closest_wp_index, max_decel = 0.5)
 
         #Initialize waypoint assuming red light ahead.
         self.waypoints = self.red_waypoints
@@ -106,10 +106,10 @@ class WaypointUpdater(object):
         x, y, z = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
         return math.sqrt(x*x + y*y + z*z)
 
-    def decelerate(self, waypoints, stop_index, max_decel = 1.0):
+    def decelerate(self, waypoints, stop_index, max_decel = 1):
         last = waypoints[stop_index]
         last.twist.twist.linear.x = 0.
-        for wp in waypoints[:-1][::-1]:
+        for wp in waypoints[:stop_index][::-1]:
             dist = self.distance_2p(wp.pose.pose.position, last.pose.pose.position)
             #decelerate at a constant rate (cuadratic decline in velocity).
             vel = math.sqrt(2 * max_decel * dist)
@@ -162,6 +162,11 @@ class WaypointUpdater(object):
             next_waypoint = min(closest_index + 1, len(self.waypoints))
             last_waypoint = min(next_waypoint + LOOKAHEAD_WPS, len(self.waypoints))
             next_waypoints = self.waypoints[next_waypoint:last_waypoint]
+            get_vel = lambda wp: wp.twist.twist.linear.x
+
+            #if closest_index > self.prev_index:
+                #print closest_index, list(map(get_vel,next_waypoints))[:5]
+                #self.prev_index = closest_index
 
             #Create a message of type Lane and publish it on the final_waypoints topic
             final_waypoints_message = self.make_lane_msg(next_waypoints)
