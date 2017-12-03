@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import PoseStamped, Pose
+from geometry_msgs.msg import PoseStamped, Point
 from styx_msgs.msg import Lane, Waypoint, TrafficLightArray, TrafficLight
 from std_msgs.msg import Int32
 from operator import itemgetter
 
 import math
+import yaml
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -29,6 +30,9 @@ TL_DETCTOR_EABLED = False
 class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
+
+        config_string = rospy.get_param("/traffic_light_config")
+        self.config = yaml.load(config_string)
 
         self.timer = 0
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
@@ -58,9 +62,15 @@ class WaypointUpdater(object):
 
     def waypoints_cb(self, msg):
         self.green_waypoints = msg.waypoints
-        #TODO: manage decelerations for red waypoints
+        # clone waypoints to initialize red_waypoints
         self.red_waypoints = list(msg.waypoints)
-        print dir(self.red_waypoints), type(self.red_waypoints)
+
+        # use traffic light locations to adjust red_waypoints' velocities
+        trafic_lights = self.config['stop_line_positions']
+        for trafic_light in trafic_lights:
+            tf_pose = Point(x = trafic_light[0], y = trafic_light[1], z = 0)
+            closest_wp_index = self.get_closest_waypoint_to_pose(self.red_waypoints, tf_pose)
+            self.red_waypoints = self.decelerate(self.red_waypoints, closest_wp_index)
 
         #Initialize waypoint assuming red light ahead.
         self.waypoints = self.red_waypoints
@@ -118,9 +128,9 @@ class WaypointUpdater(object):
 
         return distances
 
-    def get_closest_waypoint_to_pose(waypoints, pose):
+    def get_closest_waypoint_to_pose(self, waypoints, pose):
         #calculate distances from current position to each waypoint
-        distances = self.distances_to_pose(waypoints, current_pose)
+        distances = self.distances_to_pose(waypoints, pose)
 
         # find index of closest waypoint, which has the shortest distance
         closest_index, _ = min(enumerate(distances), key=itemgetter(1))
@@ -131,12 +141,13 @@ class WaypointUpdater(object):
         x, y, z = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
         return math.sqrt(x*x + y*y + z*z)
 
-    def decelerate(self, waypoints):
-        last = waypoints[-1]
+    def decelerate(self, waypoints, stop_index, max_decel = 1.0):
+        last = waypoints[stop_index]
         last.twist.twist.linear.x = 0.
         for wp in waypoints[:-1][::-1]:
             dist = self.pose_distance(wp.pose.pose.position, last.pose.pose.position)
-            vel = math.sqrt(2 * MAX_DECEL * dist)
+            #decelerate at a constant rate (cuadratic decline in velocity).
+            vel = math.sqrt(2 * max_decel * dist)
             if vel < 1.:
                 vel = 0.
             wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
@@ -156,11 +167,8 @@ class WaypointUpdater(object):
         # Make sure the current position is not the deafult initialization
         if self.currenPosition is not None:
 
-            #calculate distances from current position to each waypoint
-            distances = self.distances_to_pose(self.waypoints, self.currenPosition)
-
             # find index of closest waypoint, which has the shortest distance
-            closest_index, _ = min(enumerate(distances), key=itemgetter(1))
+            closest_index = self.get_closest_waypoint_to_pose(self.waypoints, self.currenPosition)
 
             # Use the waypoints following the current waypoint as the next
             # short term goals.
