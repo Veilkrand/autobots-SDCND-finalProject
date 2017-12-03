@@ -165,7 +165,7 @@ class WaypointUpdater(object):
     ###
     def updateWaypoints(self):
         # Make sure the current position is not the deafult initialization
-        if self.currenPosition is not None:
+        if self.currenPosition is not None and len(self.waypoints) > 0:
 
             # find index of closest waypoint, which has the shortest distance
             closest_index = self.get_closest_waypoint_to_pose(self.waypoints, self.currenPosition)
