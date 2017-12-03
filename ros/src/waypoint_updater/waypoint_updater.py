@@ -2,7 +2,7 @@
 
 import rospy
 from geometry_msgs.msg import PoseStamped, Pose
-from styx_msgs.msg import Lane, Waypoint
+from styx_msgs.msg import Lane, Waypoint, TrafficLightArray, TrafficLight
 from std_msgs.msg import Int32
 from operator import itemgetter
 
@@ -24,7 +24,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
-
+TL_DETCTOR_EABLED = False
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -34,15 +34,22 @@ class WaypointUpdater(object):
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        # Subscriber for /traffic_waypoint and /obstacle_waypoint below
+        if TL_DETCTOR_EABLED:
+            rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
         # rospy.Subscriber('/obstacle_waypoint', Lane, self.obstacle_cb)
+
+        # Suscriber to the traffic light information from the simulator
+        if not TL_DETCTOR_EABLED:
+            rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.sim_traffic_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
         self.currenPosition = None
         self.waypoints = []
+        self.green_waypoints = []
+        self.red_waypoints = []
         rospy.spin()
 
     def pose_cb(self, msg):
@@ -50,11 +57,33 @@ class WaypointUpdater(object):
         self.updateWaypoints()
 
     def waypoints_cb(self, msg):
-        self.waypoints = msg.waypoints
+        self.green_waypoints = msg.waypoints
+        #TODO: manage decelerations for red waypoints
+        self.red_waypoints = list(msg.waypoints)
+        print dir(self.red_waypoints), type(self.red_waypoints)
+
+        #Initialize waypoint assuming red light ahead.
+        self.waypoints = self.red_waypoints
+
+    def update_waypoints(self, traffic_light_state):
+        if traffic_light_state == TrafficLight.GREEN:
+            # When a green light is detected the car should follow the original
+            # waypoint velocitites set by the /base_waypoint topic.
+            self.waypoints = self.green_waypoints
+        else:
+            # When a green light is not detected, the car should follow
+            # waypoints that gently stop at every traffic light.
+            self.waypoints = self.red_waypoints
+
 
     def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+        # The waypoint updater is conservative. The car stops at every
+        # traffic light, unless a green light is detected.
+        self.update_waypoints(msg.data)
+
+    def sim_traffic_cb(self, msg):
+        # Callback for /vehicle/traffic_lights message.
+        self.update_waypoints(msg.lights[0].state)
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
@@ -74,7 +103,7 @@ class WaypointUpdater(object):
             wp1 = i
         return dist
 
-    def distances(self, waypoints, current_position):
+    def distances_to_pose(self, waypoints, current_position):
         """
         Returns an iterator with distances from current position to each waypoint
         """
@@ -88,6 +117,30 @@ class WaypointUpdater(object):
         distances = map(dist_to_a, waypoint_coordinates)
 
         return distances
+
+    def get_closest_waypoint_to_pose(waypoints, pose):
+        #calculate distances from current position to each waypoint
+        distances = self.distances_to_pose(waypoints, current_pose)
+
+        # find index of closest waypoint, which has the shortest distance
+        closest_index, _ = min(enumerate(distances), key=itemgetter(1))
+        return closest_index
+
+
+    def pose_distance(self, p1, p2):
+        x, y, z = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
+        return math.sqrt(x*x + y*y + z*z)
+
+    def decelerate(self, waypoints):
+        last = waypoints[-1]
+        last.twist.twist.linear.x = 0.
+        for wp in waypoints[:-1][::-1]:
+            dist = self.pose_distance(wp.pose.pose.position, last.pose.pose.position)
+            vel = math.sqrt(2 * MAX_DECEL * dist)
+            if vel < 1.:
+                vel = 0.
+            wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
+        return waypoints
 
     def make_lane_msg(self, waypoints):
         lane = Lane()
@@ -104,7 +157,7 @@ class WaypointUpdater(object):
         if self.currenPosition is not None:
 
             #calculate distances from current position to each waypoint
-            distances = self.distances(self.waypoints, self.currenPosition)
+            distances = self.distances_to_pose(self.waypoints, self.currenPosition)
 
             # find index of closest waypoint, which has the shortest distance
             closest_index, _ = min(enumerate(distances), key=itemgetter(1))
