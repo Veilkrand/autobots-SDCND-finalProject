@@ -70,7 +70,10 @@ class WaypointUpdater(object):
         for trafic_light in trafic_lights:
             tf_pose = Point(x = trafic_light[0], y = trafic_light[1], z = 0)
             closest_wp_index = self.get_closest_waypoint_to_pose(self.red_waypoints, tf_pose)
-            self.red_waypoints = self.decelerate(self.red_waypoints, closest_wp_index)
+
+            #Car will stop in the waypoint right before the stoplight
+            stop_index = max(0, closest_wp_index - 1)
+            self.red_waypoints = self.decelerate(self.red_waypoints, closest_wp_index - 1)
 
         #Initialize waypoint assuming red light ahead.
         self.waypoints = self.red_waypoints
@@ -99,19 +102,21 @@ class WaypointUpdater(object):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
         pass
 
-    def get_waypoint_velocity(self, waypoint):
-        return waypoint.twist.twist.linear.x
+    def pose_distance(self, p1, p2):
+        x, y, z = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
+        return math.sqrt(x*x + y*y + z*z)
 
-    def set_waypoint_velocity(self, waypoints, waypoint, velocity):
-        waypoints[waypoint].twist.twist.linear.x = velocity
-
-    def distance(self, waypoints, wp1, wp2):
-        dist = 0
-        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2  + (a.z-b.z)**2)
-        for i in range(wp1, wp2+1):
-            dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
-            wp1 = i
-        return dist
+    def decelerate(self, waypoints, stop_index, max_decel = 1.0):
+        last = waypoints[stop_index]
+        last.twist.twist.linear.x = 0.
+        for wp in waypoints[:-1][::-1]:
+            dist = self.pose_distance(wp.pose.pose.position, last.pose.pose.position)
+            #decelerate at a constant rate (cuadratic decline in velocity).
+            vel = math.sqrt(2 * max_decel * dist)
+            if vel < 1.:
+                vel = 0.
+            wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
+        return waypoints
 
     def distances_to_pose(self, waypoints, current_position):
         """
@@ -135,23 +140,6 @@ class WaypointUpdater(object):
         # find index of closest waypoint, which has the shortest distance
         closest_index, _ = min(enumerate(distances), key=itemgetter(1))
         return closest_index
-
-
-    def pose_distance(self, p1, p2):
-        x, y, z = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
-        return math.sqrt(x*x + y*y + z*z)
-
-    def decelerate(self, waypoints, stop_index, max_decel = 1.0):
-        last = waypoints[stop_index]
-        last.twist.twist.linear.x = 0.
-        for wp in waypoints[:-1][::-1]:
-            dist = self.pose_distance(wp.pose.pose.position, last.pose.pose.position)
-            #decelerate at a constant rate (cuadratic decline in velocity).
-            vel = math.sqrt(2 * max_decel * dist)
-            if vel < 1.:
-                vel = 0.
-            wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
-        return waypoints
 
     def make_lane_msg(self, waypoints):
         lane = Lane()
