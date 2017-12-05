@@ -5,7 +5,7 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 | Alberto Naranjo	| alberto.galet@gmail.com |
 | Abhishek Singhal | singhal.abhi@gmail.com |
 | Jose Centeno | centeno.jose.manuel@gmail.com |
-| Muhieddine EL Kaissi | mukaissi@gmail.com |
+| Muhieddine EL Kaissi | emukaissi@hotmail.com |
 | Sachin Malusare | sachinmidesign@gmail.com |
 
 
