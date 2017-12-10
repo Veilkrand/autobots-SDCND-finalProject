@@ -40,34 +40,6 @@ class TLClassifier(object):
         self.input_layer   = "input"
         self.output_layer  = "final_result"
 
-        #self.detection_graph = tf.Graph()
-	
-	#with detection_graph.as_default():
-	#	od_graph_def = tf.GraphDef()
-	#	with tf.gfile.GFile (self.graph_file,'rb') as fid:
-	#		serialized_graph = fid.read()
-	#		od_graph_def.ParseFromString(serialized_graph)
-	#		tf.import_graph_def(od_graph_def, name='')
-        #         
-	#	self.sess = tf.Session(graph=self.detection_graph)
-
-	#self.label_map          = label_map_util.load_labelmap(self.label_name)
-	#self.categories         = label_map_util.convert_label_map_to_categories(self.label_map,
-        #										 max_num_classes=self.num_classes, 
-        #									         use_display_name=True)
-
-	#self.category_index     = label_map_util.create_category_index(self.categories)
-
-	#self.image_tensor       = detection_graph.get_tensor_by_name('image_tensor:0')
-    	# Each box represents a part of the image where a particular object was detected.
-
-    	#self.detection_boxes    = detection_graph.get_tensor_by_name('detection_boxes:0')
-
-    	# Each score represent how level of confidence for each of the objects.
-    	# Score is shown on the result image, together with the class label.
-    	#self.detection_scores   = detection_graph.get_tensor_by_name ('detection_scores:0')
-    	#self.detection_classes  = detection_graph.get_tensor_by_name ('detection_classes:0')
-    	#self.num_detections     = detection_graph.get_tensor_by_name ('num_detections:0')
 
 
 	
@@ -75,15 +47,6 @@ class TLClassifier(object):
     def read_tensor_from_image(self, image,input_height=299, input_width=299, input_mean=0, input_std=255):
 
        output_name = "normalized"
-
-       #if file_name.endswith(".png"):
-       #  image_reader = tf.image.decode_png(file_reader, channels = 3, name='png_reader')
-       #elif file_name.endswith(".gif"):
-       #   image_reader = tf.squeeze(tf.image.decode_gif(file_reader, name='gif_reader'))
-       #elif file_name.endswith(".bmp"):
-       #  image_reader = tf.image.decode_bmp(file_reader, name='bmp_reader')
-       #else:
-       #image_reader = tf.image.decode_jpeg(image, channels = 3, name='jpeg_reader')
 
 
        float_caster  = tf.cast(image, tf.float32)
@@ -119,12 +82,6 @@ class TLClassifier(object):
         """
         #TODO implement light color predictio
 
-	#image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-
-        #image_np_expanded             = np.expand_dims(image_np, axis=0)
-        # Actual detection.
-        #(boxes, scores, classes, num) = sess.run( [detection_boxes, detection_scores, detection_classes, num_detections], feed_dict={image_tensor: image_np_expanded})
-	#predictions = self.isess.run(self.predictions,feed_dict={self.img_input: image})
 
         t = self.read_tensor_from_image(image, input_height=self.height, input_width =self.width, input_mean  =self.mean,input_std   =self.std)
 
