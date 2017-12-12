@@ -8,6 +8,25 @@ This is the project repo for the final project of the Udacity Self-Driving Car N
 | Muhieddine EL Kaissi | emukaissi@hotmail.com |
 | Sachin Malusare | sachinmidesign@gmail.com |
 
+### Overview
+
+The goal of this project was to integrate the various systems and modules of a self driving car so as to successfully pilot a car in a simulator and then a real car (CARLA). The car should be able to plot its own course, and identify and respond to traffic lights.
+
+![](imgs/SystemIntegration.png)
+
+#### 1. Waypoint updater
+
+#### 2. DBW Node
+The dbw_node is responsible for converting twist cmd to steer brake and throttle commands to be sent to simulator bridge or Carla. 
+
+* Initialize PID controllers to achieve target throttle, brake and steering angles
+* Update variables based on messages received on topics
+* Calculate error between current and target velocities and orientations
+* Map the output to throttle brake and steering values
+* If /vehicle/dbw_enabled is true: run a PID iteration to compute new throttle, brake and steering values
+* Publish output
+
+#### 3. Traffic Light Detector Node
 
 
 ### Native Installation
