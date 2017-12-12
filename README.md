@@ -15,6 +15,12 @@ The goal of this project was to integrate the various systems and modules of a s
 ![](imgs/SystemIntegration.png)
 
 #### 1. Waypoint updater
+The waypoint updater subscribes to the topics of base waypoints, current_pose, current velocity, traffic_waypoint and computes the final waypoints based on the current status of each of the information elements (topics) described above. 
+
+* Update local variables based on messages received on topics
+* Create a final_waypoints message from the base waypoints; These waypoints encode target position and velocity set by the waypoint_loader
+* Based on /traffic_waypoint status. Update viewpoints to stop smoothly before the Stop lines of each waypoint
+* Publish output
 
 #### 2. DBW Node
 The dbw_node is responsible for converting twist cmd to steer brake and throttle commands to be sent to simulator bridge or Carla. 
@@ -27,6 +33,20 @@ The dbw_node is responsible for converting twist cmd to steer brake and throttle
 * Publish output
 
 #### 3. Traffic Light Detector Node
+This node is responsible for receiving images from the camera and detecting and classifying images for traffic light status. 
+
+##### Generate Training Data
+* Subscribe to topics and update local variables
+* Using received image message and the /vehicle/traffic_lights message values, calculate the pixel co-ordinates of traffic light bounding box
+* Record bounding box annotation and image to permanent storage for training the classifier
+* Publish traffic light ground truth state based on /vehicle/traffic lights
+
+##### Prediction
+* Load frozen model
+* Subscribe to topics and update local variables
+* Convert image msg to numpy array usable by model
+* Predict using loaded model
+* Publish traffic light state based on predicted output
 
 
 ### Native Installation
